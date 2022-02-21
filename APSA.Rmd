@@ -1,0 +1,159 @@
+---
+title: "APSA_20210827_20220214"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+# crisp QCA Analysis
+## Set up
+```{r}
+rm(list=ls())
+library(QCA)
+```
+## Import raw data as "Data.APSA_1"
+```{r}
+Data.APSA_1<-read.table("PSJ_3.csv", header=T, sep=",", quote="")
+rownames(Data.APSA_1) = Data.APSA_1$State
+View(Data.APSA_1)
+```
+## Cluster analysis for non-binary conditions
+```{r}
+Xplot(Data.APSA_1$UR_Index,at=pretty(Data.APSA_1$UR_Index),cex=0.8)
+Xplot(Data.APSA_1$death_rate.c,at=pretty(Data.APSA_1$death_rate.c),cex=0.8)
+Xplot(Data.APSA_1$death_rate.d,at=pretty(Data.APSA_1$death_rate.d),cex=0.8)
+Xplot(Data.APSA_1$hospital_beds19,at=pretty(Data.APSA_1$hospital_beds19),cex=0.8)
+Xplot(Data.APSA_1$ICU_beds18,at=pretty(Data.APSA_1$ICU_beds18),cex=0.8)
+Xplot(Data.APSA_1$health_spending19,at=pretty(Data.APSA_1$health_spending19),cex=0.8)
+```
+## Find threshold for non-binary conditions
+```{r}
+findTh(Data.APSA_1$UR_Index,n=1)
+findTh(Data.APSA_1$confirmed_rate.7d)
+findTh(Data.APSA_1$health_spending19)
+```
+
+## Descriptive statistics
+```{r}
+mean(Data.APSA_1$stringency_37)
+mean(Data.APSA_1$governor_party)
+mean(Data.APSA_1$UR_Index)
+mean(Data.APSA_1$confirmed_rate.7d)
+mean(Data.APSA_1$health_spending19)
+```
+
+
+```{r}
+sd(Data.APSA_1$stringency_37)
+sd(Data.APSA_1$governor_party)
+sd(Data.APSA_1$UR_Index)
+sd(Data.APSA_1$confirmed_rate.7d)
+sd(Data.APSA_1$health_spending19)
+```
+
+
+```{r}
+min(Data.APSA_1$stringency_37)
+min(Data.APSA_1$governor_party)
+min(Data.APSA_1$UR_Index)
+min(Data.APSA_1$confirmed_rate.7d)
+min(Data.APSA_1$health_spending19)
+```
+
+```{r}
+max(Data.APSA_1$stringency_37)
+max(Data.APSA_1$governor_party)
+max(Data.APSA_1$UR_Index)
+max(Data.APSA_1$confirmed_rate.7d)
+max(Data.APSA_1$health_spending19)
+```
+
+# 39 Mandatory states vs. 11 advisory states
+## Calibration_transform raw data to crisp set membership scores
+```{r}
+Data.APSA_2=Data.APSA_1
+Data.APSA_2$UR_Index=recode(Data.APSA_1$UR_Index,cuts = "11.2",values = "0,1")
+Data.APSA_2$confirmed_rate.7d=recode(Data.APSA_1$confirmed_rate.7d,cuts = "10",values = "0,1")
+Data.APSA_2$health_spending19=recode(Data.APSA_1$health_spending19,cuts = "60",values = "0,1")
+Data.APSA_2$death_rate.d=recode(Data.APSA_1$death_rate.OneDayBeforeIssue,cuts = "0.5",values = "0,1")
+Data.APSA_2$death_rate.c=recode(Data.APSA_1$death_rate.c,cuts = "21.5",values = "0,1")
+Data.APSA_2$death_rate.7d=recode(Data.APSA_1$death_rate.7d,cuts = "0.08",values = "0,1")
+Data.APSA_2$death_rate.7c=recode(Data.APSA_1$death_rate.7c,cuts = "0",values = "0,1")
+Data.APSA_2$confirmed_rate.7c=recode(Data.APSA_1$confirmed_rate.7c,cuts = "9.5",values = "0,1")
+Data.APSA_2$hospital_beds19=recode(Data.APSA_1$hospital_beds19,cuts = "3",values = "0,1")
+Data.APSA_2$ICU_beds18=recode(Data.APSA_1$ICU_beds18,cuts = "3.1",values = "0,1")
+Data.APSA_2$Trump_lowrating=recode(Data.APSA_1$Trump_rating,cuts = "33.5",values = "0,1")
+View(Data.APSA_2)
+```
+
+## Analysis of necessity conditions to mandate SAHO with four explanatatory conditions
+```{r}
+pof("governor_party<=stringency_37",data=Data.APSA_2)
+pof("confirmed_rate.7d<=stringency_37",data=Data.APSA_2)
+pof("UR_Index<=stringency_37",data=Data.APSA_2)
+pof("health_spending19<=stringency_37",data=Data.APSA_2)
+```
+
+## Analysis of sufficiency conditions to mandate SAHO with four explanatatory conditions
+```{r}
+TT.1<-truthTable(Data.APSA_2,outcome = "stringency_37",conditions = "governor_party,UR_Index,confirmed_rate.7d,health_spending19",incl.cut=c(0.75), complete=T, show.cases = T,sort.by ="incl, n", decreasing=T)
+TT.1
+```
+
+```{r}
+Solution.1<- minimize(TT.1, include = "?",dir.exp = c(1,1,1,"-"),details = TRUE)
+Solution.1
+```
+## Analysis of sufficiency conditions to the absence of mandate SAHO with four explanatatory conditions
+```{r}
+TT.absence<-truthTable(Data.APSA_2,outcome = "~stringency_37",conditions = "governor_party,UR_Index,confirmed_rate.7d,health_spending19",incl.cut=c(0.75), complete=T, show.cases = T,sort.by ="incl, n", decreasing=T)
+TT.absence
+```
+
+```{r}
+Solution.absence<- minimize(TT.absence, include = "?",details = TRUE)
+Solution.absence
+```
+## Sensitivity Analysis 
+```{r}
+TT.1.7dd<-truthTable(Data.APSA_2,outcome = "stringency_37",conditions = "governor_party,UR_Index,death_rate.7d,health_spending19",incl.cut=c(0.75), complete=T, show.cases = T,sort.by ="incl, n", decreasing=T)
+TT.1.7dd
+```
+
+```{r}
+Solution.1.7dd<- minimize(TT.1.7dd, include = "?", dir.exp = c(1,1,1,0), details = TRUE)
+Solution.1.7dd
+```
+
+```{r}
+TT.1.7cd<-truthTable(Data.APSA_2,outcome = "stringency_37",conditions = "governor_party,UR_Index,death_rate.7c,health_spending19",incl.cut=c(0.75), complete=T, show.cases = T,sort.by ="incl, n", decreasing=T)
+TT.1.7cd
+```
+
+
+```{r}
+Solution.1.7cd<- minimize(TT.1.7cd, include = "?", dir.exp = c(1,1,1,0), details = TRUE)
+Solution.1.7cd
+```
+
+```{r}
+TT.1.7dc<-truthTable(Data.APSA_2,outcome = "stringency_37",conditions = "governor_party,UR_Index,confirmed_rate.7d,health_spending19",incl.cut=c(0.75), complete=T, show.cases = T,sort.by ="incl, n", decreasing=T)
+TT.1.7dc
+```
+
+```{r}
+Solution.1.7dc<- minimize(TT.1.7dc, include = "?", dir.exp = c(1,1,1,0), details = TRUE)
+Solution.1.7dc
+```
+
+```{r}
+TT.1.7cc<-truthTable(Data.APSA_2,outcome = "stringency_37",conditions = "governor_party,UR_Index,confirmed_rate.7c,health_spending19",incl.cut=c(0.75), complete=T, show.cases = T,sort.by ="incl, n", decreasing=T)
+TT.1.7cc
+```
+
+
+```{r}
+Solution.1.7cc<- minimize(TT.1.7cc, include = "?", dir.exp = c(1,1,1,0), details = TRUE)
+Solution.1.7cc
+```
